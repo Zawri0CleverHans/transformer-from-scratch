@@ -6,7 +6,7 @@ This repository covers:
 - Character-level tokenization and vocab mapping
 - Positional & token embeddings
 - Masked causal self-attention mechanism (`Head` module)
-- Bigram and transformer language model architectures
+- transformer language model architectures
 - Cross-entropy loss estimation across train and validation splits
 - Generative text sampling on the Tiny Shakespeare dataset
 
