@@ -1,73 +1,126 @@
-# Transformer from Scratch
+# Transformer from Scratch (nanoGPT)
 
-Building an autoregressive character-level GPT from scratch in PyTorch, inspired by Andrej Karpathy's *Zero to Hero* series.
-
-This repository covers:
-- Character-level tokenization and vocab mapping
-- Positional & token embeddings
-- Masked causal self-attention mechanism (`Head` module)
-- transformer language model architectures
-- Cross-entropy loss estimation across train and validation splits
-- Generative text sampling on the Tiny Shakespeare dataset
+A complete, ground-up PyTorch implementation of an autoregressive character-level **Generative Pre-trained Transformer (GPT)**, inspired by Andrej Karpathy's renowned deep dive:  
+▶️ **[Let's build GPT: from scratch, in code, spelled out.](https://www.youtube.com/watch?v=kCc8FmEb1nY)** (YouTube)  
+Course: **[Neural Networks: Zero to Hero](https://karpathy.ai/zero-to-hero.html)**
 
 ---
 
-## 📺 Recommended Lecture
+## 📖 Recommended Lecture
 
-For detailed explanations, derivations, and intuitions behind the concepts implemented here, please watch Andrej Karpathy's complete walkthrough lecture on YouTube:
+> *"What I cannot create, I do not understand."* — Richard Feynman
 
-▶️ **[Let's build GPT: from scratch, in code, spelled out.](https://www.youtube.com/watch?v=kCc8FmEb1nY)**  
-Playlist: **[Neural Networks: Zero to Hero](https://karpathy.ai/zero-to-hero.html)**
+If you want the deep mathematical intuition and code derivation behind every equation and tensor shape in this repository, **watch Andrej Karpathy's full lecture**:
+- **Video link:** [YouTube: Let's build GPT: from scratch, in code, spelled out](https://www.youtube.com/watch?v=kCc8FmEb1nY)
+- **Topics covered in the lecture**: Self-attention math and scaled dot-product affinities, single-head and multi-head attention, residual connections, layer normalization, scaling transformer blocks, weight initialization, and text generation.
 
 ---
 
-## 📂 Project Structure
+## 🏗️ Architecture Overview
+
+The architecture implements a decoder-only Transformer following the modern GPT-2 pre-layer normalization convention:
+
+```text
+Input Tokens (B, T)
+        │
+        ├───► Token Embedding (B, T, n_embd)
+        │                 +
+        └───► Position Embedding (T, n_embd)
+                          │
+                          ▼
+             ┌─────────────────────────┐
+             │    Transformer Block    │  x n_layer
+             │ ┌─────────────────────┐ │
+             │ │ LayerNorm (Pre-LN)  │ │
+             │ │ Multi-Head Attention│ │
+             │ └──────────┬──────────┘ │
+             │            ▼ (+) Residual
+             │ ┌─────────────────────┐ │
+             │ │ LayerNorm (Pre-LN)  │ │
+             │ │ Feed-Forward (MLP)  │ │
+             │ └──────────┬──────────┘ │
+             │            ▼ (+) Residual
+             └────────────┬────────────┘
+                          │
+                          ▼
+                Final LayerNorm
+                          │
+                          ▼
+             Linear LM Head (n_embd -> vocab_size)
+                          │
+                          ▼
+                     Logits (B, T, vocab_size)
+```
+
+### Components Implemented:
+1. **Character-Level Tokenization**: Map raw text into discrete tokens using custom `encode` and `decode` routines.
+2. **Batching**: Dynamic context chunking (`get_batch`) with random offset sampling.
+3. **Scaled Dot-Product Self-Attention (`Head`)**:
+   $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V$$
+   With causal triangular masking (`tril`) to enforce the autoregressive property.
+4. **Multi-Head Attention (`MultiHeadAttention`)**: Parallel attention projections concatenated and passed through a linear projection layer with dropout.
+5. **Position-wise Feed-Forward Network (`FeedForward`)**: $4 \times n_{\text{embd}}$ expansion with ReLU activation and dropout.
+6. **Transformer Blocks (`Block`)**: Pre-LayerNorm configuration with residual connections.
+7. **Complete GPT (`GPTLanguageModel`)**: Stacks token embeddings, positional embeddings, $N$ transformer blocks, final LayerNorm, and linear projection head. Includes custom weight initialization.
+8. **Iterative Text Sampling (`.generate()`)**: Autoregressive next-token prediction using multinomial sampling.
+
+---
+
+## 📂 Repository Structure
 
 ```text
 transformer-from-scratch/
-├── input.txt                      # Tiny Shakespeare dataset (~1MB text file)
-├── transformer-from-scratch.ipynb # Step-by-step Jupyter Notebook implementation
-└── README.md                      # Project documentation and guide
+├── input.txt                      # Tiny Shakespeare training corpus (~1MB text)
+├── gpt.py                         # Standalone, production-ready training script
+├── transformer-from-scratch.ipynb # Step-by-step interactive Jupyter notebook
+├── .gitignore                     # Git ignore rules for checkpoints/cache
+└── README.md                      # Documentation and guide
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
+### 1. Requirements
 
-Ensure you have Python 3.8+ and PyTorch installed. GPU support (CUDA) is recommended but not required (will fallback to CPU).
-
+Install PyTorch and Jupyter:
 ```bash
 pip install torch jupyter
 ```
 
-### Running the Notebook
+*(CUDA GPU is automatically detected and used if available; otherwise runs on CPU).*
 
-Clone this repository and launch Jupyter Notebook:
+### 2. Run Standalone Script
 
+Run the complete training pipeline directly from your terminal:
 ```bash
-git clone https://github.com/Zawri0CleverHans/transformer-from-scratch.git
-cd transformer-from-scratch
+python gpt.py
+```
+
+### 3. Run the Interactive Notebook
+
+Open and experiment cell-by-cell in Jupyter:
+```bash
 jupyter notebook transformer-from-scratch.ipynb
 ```
 
-You can execute the cells sequentially to load the dataset, build the self-attention components, train the model, and sample generated text.
+---
+
+## 📊 Default Hyperparameters
+
+| Hyperparameter | `gpt.py` (Full Scale) | `notebook` (Interactive) |
+|---|---|---|
+| `batch_size` | 64 | 32 |
+| `block_size` (context length) | 256 | 64 |
+| `n_embd` (embedding dim) | 384 | 128 |
+| `n_head` | 6 | 4 |
+| `n_layer` | 6 | 4 |
+| `dropout` | 0.2 | 0.2 |
+| `learning_rate` | 3e-4 | 1e-3 |
+| `max_iters` | 5000 | 3000 |
 
 ---
 
-## 💡 Overview of Implementation Steps
+## 📜 Credits & Acknowledgments
 
-1. **Dataset**: Download and inspect the Tiny Shakespeare corpus (`input.txt`).
-2. **Tokenization**: Build character-to-integer (`stoi`) and integer-to-character (`itos`) encoders/decoders.
-3. **Data Splitting & Batching**: Split into 90% train and 10% validation sets; implement `get_batch` to generate chunked context and target tensors (`x`, `y`).
-4. **Attention Head**: Implement single-head causal self-attention with lower-triangular masking (`tril`) to prevent attending to future tokens.
-5. **Language Model**: Combine token embeddings, position embeddings, and linear projection heads.
-6. **Training Loop & Loss Estimation**: Train with AdamW optimizer, periodically calculating average train and validation cross-entropy loss.
-7. **Text Generation**: Sample from the output probability distributions using `torch.multinomial`.
-
----
-
-## 📜 Acknowledgments
-
-Special thanks to **[Andrej Karpathy](https://github.com/karpathy)** for creating the outstanding educational series *Neural Networks: Zero to Hero*.
+All credit to **[Andrej Karpathy](https://github.com/karpathy)** for creating the educational lecture and series that made understanding and implementing Transformers accessible to everyone.
